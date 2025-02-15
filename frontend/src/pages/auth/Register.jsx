@@ -86,12 +86,10 @@ export default function Register() {
       render: () => (
         <div style={{ display: 'flex', flexDirection: 'column' }}>
           <label>Profile Image (Students & Teachers only)</label>
-          <input
-            type="file"
-            name="profileImage"
-            onChange={(e) =>
-              setFormData((prev) => ({ ...prev, profileImage: e.target.files[0] }))
-            }
+          <input type="file" 
+            name="profileImage" 
+            accept="image/*" 
+            onChange={handleFileUpload} 
           />
         </div>
       ),
@@ -139,6 +137,18 @@ export default function Register() {
     }));
   };
 
+  const handleFileUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+  
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => {
+      setFormData((prev) => ({ ...prev, profileImage: reader.result })); // Convert to Base64
+    };
+    reader.onerror = (error) => console.error('Error converting image:', error);
+  };
+  
   // Fetch schools/school groups when needed
   useEffect(() => {
     const currentStep = steps[step];
@@ -158,7 +168,9 @@ export default function Register() {
   }, [step, formData.role, steps]);
 
   // Submit final data using FormData if profileImage exists, else send JSON
-  const handleSubmit = async () => {
+  const handleSubmit = async (e) => {
+    e.preventDefault(); // Prevent any unintended form submission
+  
     try {
       let submissionData;
       if (formData.profileImage) {
@@ -171,9 +183,11 @@ export default function Register() {
       } else {
         submissionData = formData;
       }
+  
       const res = await axios.post('http://localhost:5000/api/auth/register', submissionData, {
         headers: formData.profileImage ? { 'Content-Type': 'multipart/form-data' } : {},
       });
+  
       setSuccessMsg(res.data.message);
       setError('');
       setShowModal(true);
@@ -183,7 +197,7 @@ export default function Register() {
       setSuccessMsg('');
       setShowModal(true);
     }
-  };
+  };  
 
   const closeModal = () => {
     setShowModal(false);
@@ -275,7 +289,7 @@ export default function Register() {
   // Build the navigation buttons for each step
   const renderNavigation = () => {
     if (step === 0) return null;
-    if (step === steps.length - 1) {
+    if (step === steps.length - 1) { // Final Step - Ensure Registration Only Here
       return (
         <div style={{ marginTop: '20px' }}>
           <button onClick={prevStep} style={{ marginRight: '10px', padding: '10px 20px' }}>
@@ -297,7 +311,7 @@ export default function Register() {
         </button>
       </div>
     );
-  };
+  };  
 
   return (
     <div
@@ -310,7 +324,7 @@ export default function Register() {
         justifyContent: 'center',
       }}
     >
-      <h2>Registration Wizard</h2>
+      <h2>Registration Preview</h2>
       <div style={{ marginTop: '20px', border: '1px solid #ccc', padding: '20px', borderRadius: '8px' }}>
         {error && <p style={{ color: 'red' }}>{error}</p>}
         {successMsg && <p style={{ color: 'green' }}>{successMsg}</p>}
@@ -332,7 +346,7 @@ export default function Register() {
             justifyContent: 'center',
           }}
         >
-          <div style={{ backgroundColor: '#fff', padding: '20px', borderRadius: '8px', maxWidth: '500px', textAlign: 'center' }}>
+          <div style={{ backgroundColor: '#fff', padding: '20px', boraderRadius: '8px', maxWidth: '500px', textAlign: 'center' }}>
             {error && <h3 style={{ color: 'red' }}>{error}</h3>}
             {successMsg && <h3 style={{ color: 'green' }}>{successMsg}</h3>}
             <button style={{ marginTop: '20px', padding: '10px 20px' }} onClick={closeModal}>

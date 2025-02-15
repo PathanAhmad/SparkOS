@@ -22,4 +22,9 @@ router.get('/pending-approvals', authController.getPendingApprovals);
 router.post('/approve-user', protect, authController.approveUser);
 router.post('/reject-user', protect, authController.rejectUser);
 
+// This is to pull all users for management portals
+router.get('/get-users', protect, authController.getUsersGrouped);
+router.post('/update-user', protect, authController.updateUser);
+router.get('/get-user/:id', protect, authController.getUserById);
+
 module.exports = router;

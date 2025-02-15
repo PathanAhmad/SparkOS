@@ -1,33 +1,49 @@
 import React, { createContext, useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 export const AuthContext = createContext();
 
 export function AuthProvider({ children }) {
-  const [token, setToken] = useState(null);
-  const [user, setUser] = useState(null);
-
-  // On first load, check localStorage
-  useEffect(() => {
-    const savedToken = localStorage.getItem('token');
+  const [token, setToken] = useState(localStorage.getItem('token') || null);
+  const [user, setUser] = useState(() => {
     const savedUser = localStorage.getItem('user');
-    if (savedToken) setToken(savedToken);
-    if (savedUser) setUser(JSON.parse(savedUser));
+    return savedUser ? JSON.parse(savedUser) : null;
+  });
+
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const handleStorageChange = () => {
+      setToken(localStorage.getItem('token') || null);
+      setUser(localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user')) : null);
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
 
-  // A helper to log the user in (store token in context and localStorage)
   const login = (receivedToken, userData) => {
-    setToken(receivedToken);
-    setUser(userData);
     localStorage.setItem('token', receivedToken);
     localStorage.setItem('user', JSON.stringify(userData));
+    setToken(receivedToken);
+    setUser(userData);
+
+    // Navigate after state updates
+    setTimeout(() => {
+      if (userData.role === 'admin') navigate('/admin');
+      else if (userData.role === 'schoolGroup') navigate('/school-group');
+      else if (userData.role === 'school') navigate('/school');
+      else if (userData.role === 'teacher') navigate('/teacher');
+      else navigate('/student');
+    }, 100); // Small delay ensures state updates first
   };
 
-  // A helper to log the user out
   const logout = () => {
-    setToken(null);
-    setUser(null);
     localStorage.removeItem('token');
     localStorage.removeItem('user');
+    setToken(null);
+    setUser(null);
+    navigate('/');
   };
 
   return (

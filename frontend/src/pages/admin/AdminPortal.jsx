@@ -1,4 +1,3 @@
-// src/pages/admin/AdminPortal.jsx
 import React, { useState, useContext } from 'react';
 import AdminUsers from './components/AdminUsers';
 import AdminCourses from './components/AdminCourses';
@@ -15,39 +14,41 @@ export default function AdminPortal() {
   };
 
   return (
-    <div className="min-h-screen w-screen flex flex-col m-0 p-0">
-      {/* Top Navigation Bar */}
-      <nav className="w-full bg-gray-100 border-b border-gray-300 flex items-center justify-between p-4">
+    <div className="min-h-screen w-screen flex flex-col bg-gray-900 text-white">
+      {/* 🔹 Top Navigation Bar */}
+      <nav className="w-full bg-gray-800 shadow-md flex items-center justify-between px-6 py-4 border-b border-gray-700">
+        {/* Left Side - Tabs */}
         <div className="flex space-x-4">
-          <button
-            onClick={() => setActiveTab('users')}
-            className={`px-4 py-2 text-gray-700 hover:text-gray-900 focus:outline-none ${activeTab === 'users' ? 'font-semibold' : ''}`}
-          >
-            Users
-          </button>
-          <button
-            onClick={() => setActiveTab('courses')}
-            className={`px-4 py-2 text-gray-700 hover:text-gray-900 focus:outline-none ${activeTab === 'courses' ? 'font-semibold' : ''}`}
-          >
-            Courses
-          </button>
-          <button
-            onClick={() => setActiveTab('notifications')}
-            className={`px-4 py-2 text-gray-700 hover:text-gray-900 focus:outline-none ${activeTab === 'notifications' ? 'font-semibold' : ''}`}
-          >
-            Notifications
-          </button>
+          {[
+            { id: 'users', label: 'Users' },
+            { id: 'courses', label: 'Courses' },
+            { id: 'notifications', label: 'Notifications' }
+          ].map(({ id, label }) => (
+            <button
+              key={id}
+              onClick={() => setActiveTab(id)}
+              className={`px-4 py-2 rounded-md transition-all font-medium text-gray-300 ${
+                activeTab === id
+                  ? 'bg-blue-600 text-white shadow-md'
+                  : 'hover:bg-gray-700'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
         </div>
+
+        {/* Right Side - Logout Button */}
         <button
           onClick={handleLogout}
-          className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 focus:outline-none"
+          className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-500 transition-all shadow-md"
         >
           Logout
         </button>
       </nav>
 
-      {/* Main Content */}
-      <div className="flex-1 w-screen m-0 p-0">
+      {/* 🔹 Main Content */}
+      <div className="flex-1 w-full p-6">
         {activeTab === 'users' && <AdminUsers />}
         {activeTab === 'courses' && <AdminCourses />}
         {activeTab === 'notifications' && <AdminNotifications />}

@@ -20,13 +20,14 @@ exports.registerUser = async (req, res) => {
       school,
       schoolGroup,
       dateOfBirth,
+      profileImage, // Now expecting Base64 string
     } = req.body;
 
     if (!email || !password || !role || !name) {
       return res.status(400).json({ message: 'Missing required fields.' });
     }
 
-    // Check for existing email or username
+    // Check for existing user
     const existingUser = await User.findOne({ $or: [{ email }, { username }] });
     if (existingUser) {
       return res.status(400).json({ message: 'User already exists.' });
@@ -42,15 +43,10 @@ exports.registerUser = async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    // Admin is auto-approved; others start as 'pending'
+    // Admins are auto-approved; others start as 'pending'
     const initialStatus = role === 'admin' ? 'approved' : 'pending';
 
-    // For students and teachers, store profileImage if uploaded
-    let profileImage = null;
-    if ((role === 'student' || role === 'teacher') && req.file) {
-      profileImage = req.file.filename;
-    }
-
+    // Create user with Base64 profile image (if provided)
     const newUser = await User.create({
       email,
       username: username || null,
@@ -61,7 +57,7 @@ exports.registerUser = async (req, res) => {
       school: school || null,
       schoolGroup: schoolGroup || null,
       dateOfBirth: dateOfBirth || null,
-      profileImage,
+      profileImage: profileImage || null, // Store Base64 directly
     });
 
     return res.status(201).json({
@@ -73,7 +69,7 @@ exports.registerUser = async (req, res) => {
         role: newUser.role,
         name: newUser.name,
         registrationStatus: newUser.registrationStatus,
-        profileImage: newUser.profileImage,
+        profileImage: newUser.profileImage, // Send Base64 image
       },
     });
   } catch (error) {
@@ -276,6 +272,77 @@ exports.rejectUser = async (req, res) => {
     });
   } catch (error) {
     console.error('Reject error:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+exports.getUsersGrouped = async (req, res) => {
+  try {
+    const schoolGroups = await User.find({ role: 'schoolGroup', registrationStatus: 'approved' }, '_id name').lean();
+    
+    const groupedData = await Promise.all(schoolGroups.map(async (group) => {
+      const schools = await User.find({ role: 'school', schoolGroup: group._id, registrationStatus: 'approved' }, '_id name').lean();
+
+      const schoolsWithUsers = await Promise.all(schools.map(async (school) => {
+        const teachers = await User.find({ role: 'teacher', school: school._id, registrationStatus: 'approved' }, '_id name email').lean();
+        const students = await User.find({ role: 'student', school: school._id, registrationStatus: 'approved' }, '_id name email').lean();
+
+        return { ...school, teachers, students };
+      }));
+
+      return { ...group, schools: schoolsWithUsers };
+    }));
+
+    res.status(200).json(groupedData);
+  } catch (error) {
+    console.error('Fetch Users Error:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+// Update user details
+exports.updateUser = async (req, res) => {
+  try {
+    const { userId, ...updateFields } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({ message: "User ID is required" });
+    }
+
+    console.log("🔎 Finding user with ID:", userId);
+
+    const user = await User.findById(userId);
+    if (!user) {
+      console.log("❌ User not found:", userId);
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    console.log("✅ User found. Updating:", updateFields);
+
+    // Perform update
+    Object.assign(user, updateFields);
+    await user.save();
+
+    console.log("✅ Updated user successfully:", user);
+
+    res.status(200).json({ message: "User updated successfully", user });
+  } catch (error) {
+    console.error("❌ Update User Error:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+
+// Fetch user details by ID
+exports.getUserById = async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id).lean();
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    res.status(200).json(user);
+  } catch (error) {
+    console.error('Get User By ID Error:', error);
     res.status(500).json({ message: 'Internal server error' });
   }
 };

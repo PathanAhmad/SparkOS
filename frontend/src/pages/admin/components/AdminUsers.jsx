@@ -1,20 +1,166 @@
-// src/pages/admin/components/AdminUsers.jsx
-import React from 'react';
+import React, { useEffect, useState, useContext } from 'react';
+import axios from 'axios';
+import { AuthContext } from '../../../context/AuthContext';
+import EditUserModal from './EditUserModal';
 
 export default function AdminUsers() {
+  const { token } = useContext(AuthContext);
+  const [userData, setUserData] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [expandedGroups, setExpandedGroups] = useState({});
+  const [expandedSchools, setExpandedSchools] = useState({});
+  const [editUser, setEditUser] = useState(null);
+  const API_BASE_URL = import.meta.env.VITE_API_URL;
+
+  useEffect(() => {
+    fetchUsers();
+  }, []);
+
+  const fetchUsers = async () => {
+    try {
+      const headers = { Authorization: `Bearer ${token}` };
+      const { data } = await axios.get(`${API_BASE_URL}/api/auth/get-users`, { headers });
+      setUserData(data);
+      setLoading(false);
+    } catch (err) {
+      setError('Failed to load users.');
+      setLoading(false);
+    }
+  };
+
+  const handleToggleGroup = (groupId) => {
+    setExpandedGroups((prev) => ({ ...prev, [groupId]: !prev[groupId] }));
+  };
+
+  const handleToggleSchool = (schoolId) => {
+    setExpandedSchools((prev) => ({ ...prev, [schoolId]: !prev[schoolId] }));
+  };
+
+  const handleDelete = async (userId) => {
+    try {
+      const headers = { Authorization: `Bearer ${token}` };
+      await axios.post(`${API_BASE_URL}/api/auth/reject-user`, { userIdToReject: userId }, { headers });
+      fetchUsers();
+    } catch (err) {
+      setError('Failed to delete user.');
+    }
+  };
+
   return (
-    <div className="w-full min-h-screen flex flex-col items-center justify-center p-6 bg-white border-t-4 border-indigo-300">
-      <div className="max-w-3xl w-full">
-        <h2 className="text-3xl font-bold mb-6 text-indigo-800 bg-indigo-100 p-3 rounded">
-          Users
-        </h2>
-        <p className="text-gray-600 mb-4">
-          This is a placeholder for the Users section. Here, you might display and manage all registered users.
-        </p>
-        <div className="mt-6 p-4 bg-pink-100 text-pink-800 rounded">
-          If you can see this pink box, Tailwind is working!
-        </div>
+    <div className="w-full min-h-screen p-6 bg-gray-900">
+      <h2 className="text-3xl font-bold mb-6 text-white">Users</h2>
+      {loading && <p className="text-gray-300">Loading users...</p>}
+      {error && <p className="text-red-400 bg-red-800 p-3 rounded-md">{error}</p>}
+
+      <div className="overflow-x-auto bg-gray-800 shadow-lg rounded-lg p-4 border border-gray-700">
+        <table className="w-full border-collapse">
+          <thead>
+            <tr className="bg-gray-700 border-b">
+              <th className="p-3 text-left text-gray-300 font-semibold">Name</th>
+              <th className="p-3 text-left text-gray-300 font-semibold">Role</th>
+              <th className="p-3 text-left text-gray-300 font-semibold">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {userData.map((group) => (
+              <React.Fragment key={group._id}>
+                {/* School Group Row */}
+                <tr
+                  className="bg-gray-600 hover:bg-gray-500 cursor-pointer border-b border-gray-700 transition-all"
+                  onClick={() => handleToggleGroup(group._id)}
+                >
+                  <td className="p-3 font-semibold flex items-center gap-3 text-white">
+                    <span className="w-6 h-6 bg-gray-400 text-white flex items-center justify-center rounded-md">
+                      {expandedGroups[group._id] ? '-' : '+'}
+                    </span>
+                    {group.name}
+                  </td>
+                  <td className="p-3 text-gray-300">School Group</td>
+                  <td className="p-3 flex gap-2">
+                    <button
+                      onClick={() => setEditUser(group)}
+                      className="px-3 py-1 bg-blue-600 text-white rounded-md hover:bg-blue-500 transition"
+                    >
+                      Edit
+                    </button>
+                  </td>
+                </tr>
+
+                {/* Schools under the Group */}
+                {expandedGroups[group._id] &&
+                  group.schools.map((school) => (
+                    <React.Fragment key={school._id}>
+                      <tr
+                        className="bg-gray-700 hover:bg-gray-600 cursor-pointer border-b border-gray-600 transition-all"
+                        onClick={() => handleToggleSchool(school._id)}
+                      >
+                        <td className="p-3 pl-10 flex items-center gap-3 text-white">
+                          <span className="w-6 h-6 bg-gray-500 text-white flex items-center justify-center rounded-md">
+                            {expandedSchools[school._id] ? '-' : '+'}
+                          </span>
+                          {school.name}
+                        </td>
+                        <td className="p-3 text-gray-300">School</td>
+                        <td className="p-3 flex gap-2">
+                          <button
+                            onClick={() => setEditUser(school)}
+                            className="px-3 py-1 bg-blue-600 text-white rounded-md hover:bg-blue-500 transition"
+                          >
+                            Edit
+                          </button>
+                        </td>
+                      </tr>
+
+                      {/* Teachers & Students under School */}
+                      {expandedSchools[school._id] && (
+                        <>
+                          {school.teachers.map((teacher) => (
+                            <tr key={teacher._id} className="bg-gray-800 hover:bg-gray-700 border-b border-gray-600">
+                              <td className="p-3 pl-16 text-gray-300">{teacher.name} ({teacher.email})</td>
+                              <td className="p-3 text-gray-400">Teacher</td>
+                              <td className="p-3 flex gap-2">
+                                <button
+                                  onClick={() => setEditUser(teacher)}
+                                  className="px-3 py-1 bg-blue-600 text-white rounded-md hover:bg-blue-500 transition"
+                                >
+                                  Edit
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+
+                          {school.students.map((student) => (
+                            <tr key={student._id} className="bg-gray-800 hover:bg-gray-700 border-b border-gray-600">
+                              <td className="p-3 pl-16 text-gray-300">{student.name} ({student.email})</td>
+                              <td className="p-3 text-gray-400">Student</td>
+                              <td className="p-3 flex gap-2">
+                                <button
+                                  onClick={() => setEditUser(student)}
+                                  className="px-3 py-1 bg-blue-600 text-white rounded-md hover:bg-blue-500 transition"
+                                >
+                                  Edit
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </>
+                      )}
+                    </React.Fragment>
+                  ))}
+              </React.Fragment>
+            ))}
+          </tbody>
+        </table>
       </div>
+
+      {editUser && (
+        <EditUserModal
+          user={editUser}
+          onClose={() => setEditUser(null)}
+          onSave={fetchUsers}
+        />
+      )}
     </div>
   );
 }
