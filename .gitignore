@@ -1,0 +1,9 @@
+# Ignore node_modules in any folder
+**/node_modules/
+
+# Ignore build output folders (adjust names as needed)
+**/dist/
+**/build/
+
+# Ignore environment files
+**/.env*
