@@ -26,14 +26,24 @@ exports.registerUser = async (req, res) => {
       return res.status(400).json({ message: 'Missing required fields.' });
     }
 
-    // (Perform duplicate checks and validations as before…)
+    // Check for existing email or username
+    const existingUser = await User.findOne({ $or: [{ email }, { username }] });
+    if (existingUser) {
+      return res.status(400).json({ message: 'User already exists.' });
+    }
+
+    // Validate role
+    const validRoles = ['admin', 'schoolGroup', 'school', 'teacher', 'student'];
+    if (!validRoles.includes(role)) {
+      return res.status(400).json({ message: 'Invalid role specified.' });
+    }
 
     // Hash password
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
     // Admin is auto-approved; others start as 'pending'
-    let initialStatus = role === 'admin' ? 'approved' : 'pending';
+    const initialStatus = role === 'admin' ? 'approved' : 'pending';
 
     // For students and teachers, store profileImage if uploaded
     let profileImage = null;
@@ -51,7 +61,7 @@ exports.registerUser = async (req, res) => {
       school: school || null,
       schoolGroup: schoolGroup || null,
       dateOfBirth: dateOfBirth || null,
-      profileImage, // New field
+      profileImage,
     });
 
     return res.status(201).json({
@@ -64,45 +74,6 @@ exports.registerUser = async (req, res) => {
         name: newUser.name,
         registrationStatus: newUser.registrationStatus,
         profileImage: newUser.profileImage,
-      },
-    });
-  } catch (error) {
-    console.error('Register error:', error);
-    return res.status(500).json({ message: 'Internal server error' });
-  }
-};
-
-    // Hash password
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
-
-    // Admin is auto-approved; others start as 'pending'
-    let initialStatus = 'pending';
-    if (role === 'admin') {
-      initialStatus = 'approved';
-    }
-
-    const newUser = await User.create({
-      email,
-      username: username || null,
-      password: hashedPassword,
-      role,
-      name,
-      registrationStatus: initialStatus,
-      school: school || null,
-      schoolGroup: schoolGroup || null,
-      dateOfBirth: dateOfBirth || null,
-    });
-
-    return res.status(201).json({
-      message: 'User registered successfully.',
-      user: {
-        _id: newUser._id,
-        email: newUser.email,
-        username: newUser.username,
-        role: newUser.role,
-        name: newUser.name,
-        registrationStatus: newUser.registrationStatus,
       },
     });
   } catch (error) {
@@ -134,6 +105,11 @@ exports.loginUser = async (req, res) => {
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
       return res.status(401).json({ message: 'Invalid credentials.' });
+    }
+
+    // Check if user is approved
+    if (user.registrationStatus !== 'approved') {
+      return res.status(403).json({ message: 'Account pending approval.' });
     }
 
     const payload = {
@@ -168,7 +144,7 @@ exports.loginUser = async (req, res) => {
  */
 exports.approveUser = async (req, res) => {
   try {
-    const approver = req.user; // { userId, role }
+    const approver = req.user;
     const { userIdToApprove } = req.body;
 
     if (!userIdToApprove) {
@@ -209,57 +185,28 @@ exports.approveUser = async (req, res) => {
   }
 };
 
-/**
- * canApprove(approver, target)
- * - Admin can approve everyone.
- * - SchoolGroup can approve School, Teacher, Student if they belong to that group.
- * - School can approve Teacher or Student if they belong to that School.
- * - Teacher can approve Student if they share the same School.
- */
 async function canApprove(approver, target) {
-  // Admin
-  if (approver.role === 'admin') {
-    return true;
-  }
+  if (approver.role === 'admin') return true;
 
-  // SchoolGroup can approve:
-  //  - School if school.schoolGroup == schoolGroup's _id
-  //  - Teacher or Student if their "school" references this group
   if (approver.role === 'schoolGroup') {
     if (target.role === 'school') {
-      return (
-        target.schoolGroup &&
-        target.schoolGroup.toString() === approver.userId.toString()
-      );
+      return target.schoolGroup?.toString() === approver.userId.toString();
     }
-    if (target.role === 'teacher' || target.role === 'student') {
-      if (!target.school) return false;
-      const schoolDoc = await User.findById(target.school).lean();
-      if (!schoolDoc) return false;
-      if (schoolDoc.role !== 'school') return false;
-      if (!schoolDoc.schoolGroup) return false;
-      return schoolDoc.schoolGroup.toString() === approver.userId.toString();
+    if (['teacher', 'student'].includes(target.role)) {
+      const school = await User.findById(target.school);
+      return school?.schoolGroup?.toString() === approver.userId.toString();
     }
   }
 
-  // School can approve Teacher or Student if teacher/student.school == this School's _id
-  // This user IS the school, so its _id is approver.userId
   if (approver.role === 'school') {
-    if (target.role === 'teacher' || target.role === 'student') {
-      return (
-        target.school &&
-        target.school.toString() === approver.userId.toString()
-      );
+    if (['teacher', 'student'].includes(target.role)) {
+      return target.school?.toString() === approver.userId.toString();
     }
   }
 
-  // Teacher can approve Student if they share the same School
-  if (approver.role === 'teacher') {
-    if (target.role === 'student') {
-      const teacherDoc = await User.findById(approver.userId).lean();
-      if (!teacherDoc || !teacherDoc.school || !target.school) return false;
-      return teacherDoc.school.toString() === target.school.toString();
-    }
+  if (approver.role === 'teacher' && target.role === 'student') {
+    const teacher = await User.findById(approver.userId);
+    return teacher?.school?.toString() === target.school?.toString();
   }
 
   return false;
@@ -267,47 +214,36 @@ async function canApprove(approver, target) {
 
 exports.getSchools = async (req, res) => {
   try {
-    // Fetch only approved schools
     const schools = await User.find(
       { role: 'school', registrationStatus: 'approved' },
-      '_id name' // Only return these fields
+      '_id name'
     ).lean();
-
-    return res.status(200).json(schools);
+    res.status(200).json(schools);
   } catch (error) {
     console.error('GetSchools error:', error);
-    return res.status(500).json({ message: 'Internal server error' });
+    res.status(500).json({ message: 'Internal server error' });
   }
 };
 
-/**
- * GET /api/auth/schoolGroups
- * Returns a list of approved school groups (_id, name).
- */
 exports.getSchoolGroups = async (req, res) => {
   try {
-    // Fetch only approved school groups
     const groups = await User.find(
       { role: 'schoolGroup', registrationStatus: 'approved' },
       '_id name'
     ).lean();
-
-    return res.status(200).json(groups);
+    res.status(200).json(groups);
   } catch (error) {
     console.error('GetSchoolGroups error:', error);
-    return res.status(500).json({ message: 'Internal server error' });
+    res.status(500).json({ message: 'Internal server error' });
   }
 };
 
 exports.getPendingApprovals = async (req, res) => {
   try {
-    // If completely public, do NOT rely on req.user.
-    // Just find all pending users in the database:
     const pendingUsers = await User.find(
       { registrationStatus: 'pending' },
       '_id name role registrationStatus'
     ).lean();
-
     res.status(200).json(pendingUsers);
   } catch (error) {
     console.error('GetPendingApprovals error:', error);
@@ -317,8 +253,8 @@ exports.getPendingApprovals = async (req, res) => {
 
 exports.rejectUser = async (req, res) => {
   try {
-    const approver = req.user; // { userId, role }
     const { userIdToReject } = req.body;
+    const approver = req.user;
 
     if (!userIdToReject) {
       return res.status(400).json({ message: 'No user specified to reject.' });
@@ -329,22 +265,17 @@ exports.rejectUser = async (req, res) => {
       return res.status(404).json({ message: 'Target user not found.' });
     }
 
-    // Only admin can reject (or delete) for simplicity
     if (approver.role !== 'admin') {
       return res.status(403).json({ message: 'Permission denied. Only admins can reject.' });
     }
 
-    // Actually delete the user document
     await userToReject.deleteOne();
-
-    return res.status(200).json({
+    res.status(200).json({
       message: 'User has been deleted (rejected).',
       deletedUserId: userIdToReject,
     });
   } catch (error) {
-    console.error('Reject (delete) error:', error);
-    return res.status(500).json({ message: 'Internal server error' });
+    console.error('Reject error:', error);
+    res.status(500).json({ message: 'Internal server error' });
   }
 };
-
-
