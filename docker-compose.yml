@@ -1,0 +1,34 @@
+services:
+  backend:
+    build: ./backend
+    ports:
+      - "5000:5000"
+    env_file:
+      - ./backend/.env  # Load the backend .env file
+    depends_on:
+      - mongo
+    volumes:
+      - ./backend:/usr/src/app
+      - /usr/src/app/node_modules
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:3000"  # Fix frontend port mapping
+    env_file:
+      - ./frontend/.env  # Load the frontend .env file
+    depends_on:
+      - mongo  # Fix: frontend doesn't need to depend on backend
+    volumes:
+      - ./frontend:/usr/src/app
+      - /usr/src/app/node_modules
+
+  mongo:
+    image: mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+
+volumes:
+  mongo_data:

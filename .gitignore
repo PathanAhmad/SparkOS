@@ -1,7 +1,7 @@
 # Ignore node_modules in any folder
 **/node_modules/
 
-# Ignore build output folders (adjust names as needed)
+# Ignore build output folders 
 **/dist/
 **/build/
 
@@ -10,3 +10,14 @@
 
 # Ignore the Random folder
 Random/
+
+# Ignore Docker-related files
+**/docker-compose.override.yml
+**/docker-data/
+**/mongo_data/
+**/backend/.dockerignore
+**/frontend/.dockerignore
+**/backend/Dockerfile
+**/frontend/Dockerfile
+**/backend/compose.yaml
+**/frontend/compose.yaml
