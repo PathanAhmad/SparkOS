@@ -18,11 +18,12 @@ export default function AdminNotifications() {
     try {
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
       const { data } = await axios.get(`${API_BASE_URL}/api/auth/pending-approvals`, { headers });
-      setApprovals(data);
+      setApprovals(Array.isArray(data) ? data : []); // Ensure it's an array
     } catch (err) {
       setError(err.response?.data?.message || 'Server error');
+      setApprovals([]); // Prevents undefined errors
     }
-  };
+  };  
 
   useEffect(() => {
     fetchApprovals();
