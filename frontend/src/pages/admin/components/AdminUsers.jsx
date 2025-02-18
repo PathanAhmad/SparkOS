@@ -21,13 +21,15 @@ export default function AdminUsers() {
     try {
       const headers = { Authorization: `Bearer ${token}` };
       const { data } = await axios.get(`${API_BASE_URL}/api/auth/get-users`, { headers });
-      setUserData(data);
+  
+      setUserData(Array.isArray(data) ? data : []); // Ensure it's an array
       setLoading(false);
     } catch (err) {
       setError('Failed to load users.');
+      setUserData([]); // Prevents `map` crash
       setLoading(false);
     }
-  };
+  };  
 
   const handleToggleGroup = (groupId) => {
     setExpandedGroups((prev) => ({ ...prev, [groupId]: !prev[groupId] }));
