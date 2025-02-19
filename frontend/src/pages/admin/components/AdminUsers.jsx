@@ -21,15 +21,14 @@ export default function AdminUsers() {
     try {
       const headers = { Authorization: `Bearer ${token}` };
       const { data } = await axios.get(`${API_BASE_URL}/api/auth/get-users`, { headers });
-  
-      setUserData(Array.isArray(data) ? data : []); // Ensure it's an array
+      setUserData(Array.isArray(data) ? data : []);
       setLoading(false);
     } catch (err) {
       setError('Failed to load users.');
-      setUserData([]); // Prevents `map` crash
+      setUserData([]);
       setLoading(false);
     }
-  };  
+  };
 
   const handleToggleGroup = (groupId) => {
     setExpandedGroups((prev) => ({ ...prev, [groupId]: !prev[groupId] }));
@@ -39,11 +38,26 @@ export default function AdminUsers() {
     setExpandedSchools((prev) => ({ ...prev, [schoolId]: !prev[schoolId] }));
   };
 
-  const handleDelete = async (userId) => {
+  const handleDelete = async (userId, role) => {
     try {
       const headers = { Authorization: `Bearer ${token}` };
       await axios.post(`${API_BASE_URL}/api/auth/reject-user`, { userIdToReject: userId }, { headers });
-      fetchUsers();
+
+      // Remove user locally
+      setUserData((prevUsers) =>
+        prevUsers
+          .filter(group => group._id !== userId) // Remove if School Group
+          .map(group => ({
+            ...group,
+            schools: group.schools
+              .filter(school => school._id !== userId) // Remove if School
+              .map(school => ({
+                ...school,
+                teachers: school.teachers.filter(user => user._id !== userId), // Remove if Teacher
+                students: school.students.filter(user => user._id !== userId), // Remove if Student
+              })),
+          }))
+      );
     } catch (err) {
       setError('Failed to delete user.');
     }
@@ -68,11 +82,8 @@ export default function AdminUsers() {
             {userData.map((group) => (
               <React.Fragment key={group._id}>
                 {/* School Group Row */}
-                <tr
-                  className="bg-gray-600 hover:bg-gray-500 cursor-pointer border-b border-gray-700 transition-all"
-                  onClick={() => handleToggleGroup(group._id)}
-                >
-                  <td className="p-3 font-semibold flex items-center gap-3 text-white">
+                <tr className="bg-gray-600 hover:bg-gray-500 cursor-pointer border-b border-gray-700 transition-all">
+                  <td className="p-3 font-semibold flex items-center gap-3 text-white" onClick={() => handleToggleGroup(group._id)}>
                     <span className="w-6 h-6 bg-gray-400 text-white flex items-center justify-center rounded-md">
                       {expandedGroups[group._id] ? '-' : '+'}
                     </span>
@@ -80,11 +91,11 @@ export default function AdminUsers() {
                   </td>
                   <td className="p-3 text-gray-300">School Group</td>
                   <td className="p-3 flex gap-2">
-                    <button
-                      onClick={() => setEditUser(group)}
-                      className="px-3 py-1 bg-blue-600 text-white rounded-md hover:bg-blue-500 transition"
-                    >
+                    <button onClick={() => setEditUser(group)} className="px-3 py-1 bg-blue-600 text-white rounded-md hover:bg-blue-500 transition">
                       Edit
+                    </button>
+                    <button onClick={() => handleDelete(group._id, 'schoolGroup')} className="px-3 py-1 bg-red-600 text-white rounded-md hover:bg-red-500 transition">
+                      Delete
                     </button>
                   </td>
                 </tr>
@@ -93,11 +104,8 @@ export default function AdminUsers() {
                 {expandedGroups[group._id] &&
                   group.schools.map((school) => (
                     <React.Fragment key={school._id}>
-                      <tr
-                        className="bg-gray-700 hover:bg-gray-600 cursor-pointer border-b border-gray-600 transition-all"
-                        onClick={() => handleToggleSchool(school._id)}
-                      >
-                        <td className="p-3 pl-10 flex items-center gap-3 text-white">
+                      <tr className="bg-gray-700 hover:bg-gray-600 cursor-pointer border-b border-gray-600 transition-all">
+                        <td className="p-3 pl-10 flex items-center gap-3 text-white" onClick={() => handleToggleSchool(school._id)}>
                           <span className="w-6 h-6 bg-gray-500 text-white flex items-center justify-center rounded-md">
                             {expandedSchools[school._id] ? '-' : '+'}
                           </span>
@@ -105,11 +113,11 @@ export default function AdminUsers() {
                         </td>
                         <td className="p-3 text-gray-300">School</td>
                         <td className="p-3 flex gap-2">
-                          <button
-                            onClick={() => setEditUser(school)}
-                            className="px-3 py-1 bg-blue-600 text-white rounded-md hover:bg-blue-500 transition"
-                          >
+                          <button onClick={() => setEditUser(school)} className="px-3 py-1 bg-blue-600 text-white rounded-md hover:bg-blue-500 transition">
                             Edit
+                          </button>
+                          <button onClick={() => handleDelete(school._id, 'school')} className="px-3 py-1 bg-red-600 text-white rounded-md hover:bg-red-500 transition">
+                            Delete
                           </button>
                         </td>
                       </tr>
@@ -122,11 +130,11 @@ export default function AdminUsers() {
                               <td className="p-3 pl-16 text-gray-300">{teacher.name} ({teacher.email})</td>
                               <td className="p-3 text-gray-400">Teacher</td>
                               <td className="p-3 flex gap-2">
-                                <button
-                                  onClick={() => setEditUser(teacher)}
-                                  className="px-3 py-1 bg-blue-600 text-white rounded-md hover:bg-blue-500 transition"
-                                >
+                                <button onClick={() => setEditUser(teacher)} className="px-3 py-1 bg-blue-600 text-white rounded-md hover:bg-blue-500 transition">
                                   Edit
+                                </button>
+                                <button onClick={() => handleDelete(teacher._id, 'teacher')} className="px-3 py-1 bg-red-600 text-white rounded-md hover:bg-red-500 transition">
+                                  Delete
                                 </button>
                               </td>
                             </tr>
@@ -137,11 +145,11 @@ export default function AdminUsers() {
                               <td className="p-3 pl-16 text-gray-300">{student.name} ({student.email})</td>
                               <td className="p-3 text-gray-400">Student</td>
                               <td className="p-3 flex gap-2">
-                                <button
-                                  onClick={() => setEditUser(student)}
-                                  className="px-3 py-1 bg-blue-600 text-white rounded-md hover:bg-blue-500 transition"
-                                >
+                                <button onClick={() => setEditUser(student)} className="px-3 py-1 bg-blue-600 text-white rounded-md hover:bg-blue-500 transition">
                                   Edit
+                                </button>
+                                <button onClick={() => handleDelete(student._id, 'student')} className="px-3 py-1 bg-red-600 text-white rounded-md hover:bg-red-500 transition">
+                                  Delete
                                 </button>
                               </td>
                             </tr>
@@ -156,13 +164,7 @@ export default function AdminUsers() {
         </table>
       </div>
 
-      {editUser && (
-        <EditUserModal
-          user={editUser}
-          onClose={() => setEditUser(null)}
-          onSave={fetchUsers}
-        />
-      )}
+      {editUser && <EditUserModal user={editUser} onClose={() => setEditUser(null)} onSave={fetchUsers} />}
     </div>
   );
 }

@@ -1,14 +1,14 @@
-import React from 'react';
-import { Routes, Route } from 'react-router-dom';
+import React, { useContext } from 'react';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import ProtectedRoute from './components/ProtectedRoute';
-import { AuthProvider } from './context/AuthContext';
+import { AuthProvider, AuthContext } from './context/AuthContext';
 
 import LandingPage from './pages/auth/LandingPage';
 import Login from './pages/auth/Login';
 import Register from './pages/auth/Register';
 import Unauthorized from './pages/auth/Unauthorized';
 
-// Add LoginClass & LoginManagement pages
+// Login Pages
 import LoginClass from './pages/auth/LoginClass';
 import LoginManagement from './pages/auth/LoginManagement';
 
@@ -53,9 +53,22 @@ export default function AppRoutes() {
           <Route path="/student" element={<StudentPortal />} />
         </Route>
 
-        {/* Fallback Route */}
-        <Route path="*" element={<Unauthorized />} />
+        {/* 🚀 Handle 404 Routes - Redirect Users to Their Portals or Landing Page */}
+        <Route path="*" element={<RoleBasedRedirect />} />
       </Routes>
     </AuthProvider>
   );
+}
+
+// 🚀 Dynamically Redirect Users Based on Their Role or Send Them to Landing Page
+function RoleBasedRedirect() {
+  const { user } = useContext(AuthContext);
+
+  if (user?.role === 'admin') return <Navigate to="/admin" replace />;
+  if (user?.role === 'schoolGroup') return <Navigate to="/school-group" replace />;
+  if (user?.role === 'school') return <Navigate to="/school" replace />;
+  if (user?.role === 'teacher') return <Navigate to="/teacher" replace />;
+  if (user?.role === 'student') return <Navigate to="/student" replace />;
+  
+  return <Navigate to="/" replace />;
 }

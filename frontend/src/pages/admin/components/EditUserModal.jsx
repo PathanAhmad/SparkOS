@@ -78,7 +78,14 @@ export default function EditUserModal({ user, onClose, onSave }) {
                 <tr key={key} className="border-b">
                   <td className="p-3 font-medium text-gray-700 capitalize bg-gray-100">{key}</td>
                   <td className="p-3 text-gray-800">
-                    {editingFields[key] ? (
+                    {/* Render Image if profileImage field exists */}
+                    {key === 'profileImage' && formData[key] ? (
+                      <img 
+                        src={formData[key]} 
+                        alt="Profile" 
+                        className="w-20 h-20 object-cover rounded-full border border-gray-300"
+                      />
+                    ) : editingFields[key] ? (
                       <input
                         type={key === 'dateOfBirth' ? 'date' : 'text'}
                         value={formData[key] || ''}
@@ -90,12 +97,14 @@ export default function EditUserModal({ user, onClose, onSave }) {
                     )}
                   </td>
                   <td className="p-3">
-                    <button
-                      onClick={() => setEditingFields({ ...editingFields, [key]: !editingFields[key] })}
-                      className="p-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition"
-                    >
-                      <Edit size={16} />
-                    </button>
+                    {key !== 'profileImage' && (
+                      <button
+                        onClick={() => setEditingFields({ ...editingFields, [key]: !editingFields[key] })}
+                        className="p-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition"
+                      >
+                        <Edit size={16} />
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}

@@ -1,5 +1,6 @@
 import React, { createContext, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
 
 export const AuthContext = createContext();
 
@@ -20,6 +21,23 @@ export function AuthProvider({ children }) {
 
     window.addEventListener('storage', handleStorageChange);
     return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
+
+  // 🚀 Intercept 401 errors globally and log users out if token expires
+  useEffect(() => {
+    const responseInterceptor = axios.interceptors.response.use(
+      (response) => response,
+      (error) => {
+        if (error.response?.status === 401) {
+          logout(); // Force logout on token expiry
+        }
+        return Promise.reject(error);
+      }
+    );
+
+    return () => {
+      axios.interceptors.response.eject(responseInterceptor);
+    };
   }, []);
 
   const login = (receivedToken, userData) => {
@@ -43,7 +61,7 @@ export function AuthProvider({ children }) {
     localStorage.removeItem('user');
     setToken(null);
     setUser(null);
-    navigate('/');
+    navigate('/'); // Redirect to Landing Page when logged out
   };
 
   return (

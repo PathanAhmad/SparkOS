@@ -10,14 +10,27 @@ export default function ProtectedRoute({ allowedRoles }) {
     return <div className="flex justify-center items-center h-screen text-white">Loading...</div>; 
   }
 
-  // Redirect to login if not authenticated
+  // 🚀 Redirect to landing page if token expired
   if (!token || !user) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/" replace />;
   }
 
-  // Check if user role is in the allowed roles
+  // 🚀 Redirect to their respective dashboard if they are unauthorized
   if (!allowedRoles.includes(user.role)) {
-    return <Navigate to="/unauthorized" replace />;
+    switch (user.role) {
+      case 'admin':
+        return <Navigate to="/admin" replace />;
+      case 'schoolGroup':
+        return <Navigate to="/school-group" replace />;
+      case 'school':
+        return <Navigate to="/school" replace />;
+      case 'teacher':
+        return <Navigate to="/teacher" replace />;
+      case 'student':
+        return <Navigate to="/student" replace />;
+      default:
+        return <Navigate to="/" replace />;
+    }
   }
 
   return <Outlet />;
