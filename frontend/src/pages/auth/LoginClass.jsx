@@ -16,8 +16,7 @@ export default function LoginClass() {
 
     try {
       const { data } = await axios.post(`${API_URL}/api/auth/login`, { login, password });
-
-      console.log('User Data:', data.user);
+      
       authLogin(data.token, data.user);
     } catch (err) {
       console.error('Login Error:', err);

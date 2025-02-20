@@ -30,8 +30,6 @@ export default function EditUserModal({ user, onClose, onSave }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    console.log("📤 Sending update request:", formData);
   
     try {
       const response = await axios.post(
@@ -41,8 +39,6 @@ export default function EditUserModal({ user, onClose, onSave }) {
           headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
         }
       );
-  
-      console.log("✅ Update successful:", response.data);
       
       onSave(); // Refresh users list
       onClose();

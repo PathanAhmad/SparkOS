@@ -19,9 +19,6 @@ export default function AdminNotifications() {
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
       const response = await axios.get(`${API_BASE_URL}/api/auth/pending-approvals`, { headers });
   
-      console.log("API Response:", response);  // ✅ Log full response
-      console.log("Approvals Data:", response.data);  // ✅ Log just the data
-  
       setApprovals(Array.isArray(response.data) ? response.data : []); // Ensure it's an array
     } catch (err) {
       console.error("Fetch Error:", err);  // ✅ Log error if any

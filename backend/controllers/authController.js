@@ -309,21 +309,14 @@ exports.updateUser = async (req, res) => {
       return res.status(400).json({ message: "User ID is required" });
     }
 
-    console.log("🔎 Finding user with ID:", userId);
-
     const user = await User.findById(userId);
     if (!user) {
-      console.log("❌ User not found:", userId);
       return res.status(404).json({ message: "User not found" });
     }
-
-    console.log("✅ User found. Updating:", updateFields);
 
     // Perform update
     Object.assign(user, updateFields);
     await user.save();
-
-    console.log("✅ Updated user successfully:", user);
 
     res.status(200).json({ message: "User updated successfully", user });
   } catch (error) {

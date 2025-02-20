@@ -19,6 +19,10 @@ import SchoolPortal from './pages/school/SchoolPortal';
 import TeacherPortal from './pages/teacher/TeacherPortal';
 import StudentPortal from './pages/student/StudentPortal';
 
+// Courses Pages
+import CourseDetail from './pages/student/components/CourseDetail';
+import UnitContent from './pages/student/components/UnitContent'
+
 export default function AppRoutes() {
   return (
     <AuthProvider>
@@ -51,6 +55,8 @@ export default function AppRoutes() {
 
         <Route element={<ProtectedRoute allowedRoles={['student']} />}>
           <Route path="/student" element={<StudentPortal />} />
+          <Route path="/student/courses/:courseId" element={<CourseDetail />} />
+          <Route path="/student/courses/:courseId/module/:moduleIndex/unit/:unitIndex" element={<UnitContent />} /> 
         </Route>
 
         {/* 🚀 Handle 404 Routes - Redirect Users to Their Portals or Landing Page */}

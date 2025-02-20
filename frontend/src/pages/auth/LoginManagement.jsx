@@ -17,8 +17,7 @@ export default function LoginManagement() {
 
     try {
       const { data } = await axios.post(`${API_BASE_URL}/api/auth/login`, { login, password });
-
-      console.log('User Data:', data.user);
+      
       authLogin(data.token, data.user); // Uses AuthContext to update state
 
       // Redirect based on role

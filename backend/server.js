@@ -2,7 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const connectDB = require('./config/db');
 const cors = require('cors');
-
+const courseRoutes = require('./routes/courseRoutes');
 const authRoutes = require('./routes/authRoutes');
 
 const app = express();
@@ -23,6 +23,7 @@ app.use(express.json());
 
 // 4) Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/courses', courseRoutes);
 
 // Health check or default route
 app.get('/', (req, res) => {
