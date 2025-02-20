@@ -64,16 +64,16 @@ export default function Courses() {
       )}
 
       {/* Render each creator group as a separate section */}
-      {creatorLabels.map((label) => {
+      {creatorLabels.map((label, index) => {
         const coursesForThisCreator = coursesGroupedByCreator[label];
         return (
-          <section className="mb-8" key={label}>
+          <section className="mb-8" key={`creator-${label}-${index}`}>
             <h3 className="text-xl font-semibold text-gray-700 mb-3">
               Courses by {label}
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {coursesForThisCreator.map((course) => (
-                <CourseCard course={course} key={course._id} />
+                <CourseCard course={course} key={course._id || `course-${index}`} />
               ))}
             </div>
           </section>
