@@ -1,11 +1,10 @@
-// Course.js
 const mongoose = require('mongoose');
 const { Schema } = mongoose;
 
 const ContentSchema = new Schema({
   contentType: {
     type: String,
-    enum: ['video', 'mcq', 'fillInBlank', 'text'],
+    enum: ['video', 'mcq', 'fillInBlank', 'text', 'pdf'],
     required: true,
   },
   videoUrl: { type: String, default: null },
@@ -32,48 +31,11 @@ const CourseSchema = new Schema(
     description: { type: String },
     imageBase64: { type: String, default: null }, // If storing images as Base64
 
-    // ------------------------
-    // Old (Backward-Compat)
-    // ------------------------
-    visibility: {
-      type: String,
-      enum: ['public', 'schoolGroup', 'school'],
-      default: 'public',
-    },
-    schoolGroup: {
-      type: Schema.Types.ObjectId,
-      ref: 'User',
-      default: null,
-    },
-    school: {
-      type: Schema.Types.ObjectId,
-      ref: 'User',
-      default: null,
-    },
+    // Only permittedSchools is kept for access control.
     permittedSchools: [
       {
         type: Schema.Types.ObjectId,
         ref: 'User', // Because your 'School' is also a 'User' with role=school
-      },
-    ],
-
-    // ------------------------
-    // New Approach (Streamlined)
-    // ------------------------
-    isPublic: { 
-      type: Boolean, 
-      default: false,
-    },
-    allowedSchoolGroups: [
-      {
-        type: Schema.Types.ObjectId,
-        ref: 'User', // 'schoolGroup' user docs
-      },
-    ],
-    allowedSchools: [
-      {
-        type: Schema.Types.ObjectId,
-        ref: 'User', // 'school' user docs
       },
     ],
 

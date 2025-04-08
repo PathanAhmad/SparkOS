@@ -5,7 +5,8 @@ import { X, Edit } from 'lucide-react'; // Close & Edit icons
 export default function EditUserModal({ user, onClose, onSave }) {
   const [formData, setFormData] = useState({});
   const [editingFields, setEditingFields] = useState({});
-  const API_BASE_URL = import.meta.env.VITE_API_URL;
+
+  const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5100";
 
   // Fetch full user details on modal open
   useEffect(() => {

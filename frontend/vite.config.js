@@ -3,7 +3,8 @@ import react from '@vitejs/plugin-react-swc';
 import tailwindcss from '@tailwindcss/vite';
 
 export default defineConfig(({ mode }) => {
-  const env = loadEnv(mode, process.cwd(), '');
+  // I'm trying to only load `VITE_` prefixed environment variables
+  const env = loadEnv(mode, process.cwd(), 'VITE');
 
   return {
     server: { port: 3000 },

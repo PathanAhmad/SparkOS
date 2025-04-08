@@ -5,14 +5,14 @@ export default function PDFContent({ pdfFileId, onNext }) {
     return <div className="text-red-500 text-xl">PDF not found.</div>;
   }
 
-  const pdfUrl = `${import.meta.env.VITE_API_URL}/api/files/${pdfFileId}`;
+  const pdfUrl = `${import.meta.env.VITE_API_URL}/api/files/pdf/${pdfFileId}`;
 
   return (
     <div className="flex flex-col items-center w-full">
       <iframe
         src={pdfUrl}
         title="PDF Document"
-        className="w-full max-w-3xl h-[80vh] border rounded"
+        className="w-full h-[90vh] max-w-4xl border rounded"
       />
       <button
         onClick={onNext}

@@ -155,12 +155,12 @@ export default function Register() {
     if (currentStep && currentStep.label === 'Choose Reference') {
       if (formData.role === 'student' || formData.role === 'teacher') {
         axios
-          .get('http://localhost:5000/api/auth/schools')
+          .get('http://localhost:5100/api/auth/schools')
           .then((res) => setSchools(res.data))
           .catch((err) => console.error('Error fetching schools:', err));
       } else if (formData.role === 'school') {
         axios
-          .get('http://localhost:5000/api/auth/schoolGroups')
+          .get('http://localhost:5100/api/auth/schoolGroups')
           .then((res) => setSchoolGroups(res.data))
           .catch((err) => console.error('Error fetching school groups:', err));
       }
@@ -184,7 +184,7 @@ export default function Register() {
         submissionData = formData;
       }
   
-      const res = await axios.post('http://localhost:5000/api/auth/register', submissionData, {
+      const res = await axios.post('http://localhost:5100/api/auth/register', submissionData, {
         headers: formData.profileImage ? { 'Content-Type': 'multipart/form-data' } : {},
       });
   

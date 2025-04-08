@@ -11,7 +11,7 @@ export default function AdminUsers() {
   const [expandedGroups, setExpandedGroups] = useState({});
   const [expandedSchools, setExpandedSchools] = useState({});
   const [editUser, setEditUser] = useState(null);
-  const API_BASE_URL = import.meta.env.VITE_API_URL;
+  const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5100";
 
   useEffect(() => {
     fetchUsers();

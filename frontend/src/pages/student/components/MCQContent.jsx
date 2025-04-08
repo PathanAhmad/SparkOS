@@ -3,6 +3,7 @@ import React, { useState } from "react";
 export default function MCQContent({ question, options, correctAnswer, onNext }) {
   const [selectedOption, setSelectedOption] = useState(null);
   const [attempts, setAttempts] = useState({}); // Store incorrect attempts
+  const [mistakeCount, setMistakeCount] = useState(0); // ✅ Track total mistakes
   const [checked, setChecked] = useState(false);
   const [isCorrect, setIsCorrect] = useState(false);
 
@@ -20,14 +21,19 @@ export default function MCQContent({ question, options, correctAnswer, onNext })
       setIsCorrect(true);
     } else {
       setAttempts((prev) => ({ ...prev, [selectedOption]: "incorrect" }));
+      setMistakeCount((prev) => prev + 1); // ✅ Increment mistake count
     }
+  };
+
+  const handleNext = () => {
+    onNext(mistakeCount); // ✅ Send mistake count when proceeding
   };
 
   return (
     <div className="flex flex-col md:flex-row items-center justify-center w-full h-full p-6 space-y-6 md:space-y-0 md:space-x-8">
       {/* Left Side: Fixed Question Box */}
-      <div className="w-full md:w-1/2 p-6 !bg-gray !text-black rounded-lg min-h-[180px] flex items-center justify-center">
-        <p className="text-2xl font-semibold !text-black text-center">{question}</p>
+      <div className="w-full md:w-1/2 p-6 bg-gray-100 text-black rounded-lg min-h-[180px] flex items-center justify-center">
+        <p className="text-2xl font-semibold text-center">{question}</p>
       </div>
 
       {/* Right Side: Options + Buttons */}
@@ -73,10 +79,10 @@ export default function MCQContent({ question, options, correctAnswer, onNext })
 
             {/* Next Button - Appears only if correct answer is chosen */}
             <button
-              onClick={onNext}
+              onClick={handleNext}
               className={`w-full px-6 py-2 rounded-lg text-lg transition ${
                 isCorrect
-                  ? "!bg-green-black !text-white hover:bg-black-700"
+                  ? "!bg-green-600 !text-white hover:bg-green-700"
                   : "opacity-0 pointer-events-none"
               }`}
               disabled={!isCorrect}

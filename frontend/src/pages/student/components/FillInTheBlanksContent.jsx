@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 
 export default function FillInTheBlanksContent({ question, correctAnswer, onNext }) {
   // Ensure `question` has a valid default to prevent crashes
@@ -8,21 +8,28 @@ export default function FillInTheBlanksContent({ question, correctAnswer, onNext
   const [userAnswer, setUserAnswer] = useState("");
   const [checked, setChecked] = useState(false);
   const [isCorrect, setIsCorrect] = useState(false);
+  const [mistakeCount, setMistakeCount] = useState(0); // ✅ Track total mistakes
 
   const normalizeText = (text) => text.trim().toLowerCase().normalize("NFC");
 
   const handleCheckAnswer = () => {
     setChecked(true);
-    setIsCorrect(normalizeText(userAnswer) === normalizeText(correctAnswer));
+    const isAnswerCorrect = normalizeText(userAnswer) === normalizeText(correctAnswer);
+    setIsCorrect(isAnswerCorrect);
+
+    if (!isAnswerCorrect) {
+      setMistakeCount((prev) => prev + 1); // ✅ Increment mistake count if incorrect
+    }
+  };
+
+  const handleNext = () => {
+    onNext(mistakeCount); // ✅ Send mistake count when proceeding
   };
 
   return (
     <div className="flex flex-col items-center w-full p-6">
-      {/* Debugging Output */}
-      {console.log("Rendering Question:", safeQuestion)}
-
       {/* Question Text with Blanks */}
-      <div className="text-2xl font-semibold text-gray-800 text-center leading-relaxed p-4 bg-white shadow-md rounded-lg">
+      <div className="text-2xl font-semibold text-gray-800 text-center leading-relaxed p-4 bg-gray rounded-lg">
         {parts[0]}{" "}
         <input
           type="text"
@@ -56,7 +63,7 @@ export default function FillInTheBlanksContent({ question, correctAnswer, onNext
         </button>
 
         <button
-          onClick={onNext}
+          onClick={handleNext}
           className={`px-6 py-2 rounded-lg text-lg transition ${
             isCorrect
               ? "bg-green-600 text-white hover:bg-green-700"
@@ -68,36 +75,5 @@ export default function FillInTheBlanksContent({ question, correctAnswer, onNext
         </button>
       </div>
     </div>
-  );
-}
-
-// Parent Component Example (Ensuring `question` is defined before rendering)
-function ParentComponent() {
-  const [question, setQuestion] = useState(null);
-  const [correctAnswer, setCorrectAnswer] = useState("");
-
-  useEffect(() => {
-    async function fetchQuestion() {
-      try {
-        const response = await fetch("your-api-url"); // Replace with actual API
-        const data = await response.json();
-        setQuestion(data.question || "Default question");
-        setCorrectAnswer(data.correctAnswer || "");
-      } catch (error) {
-        console.error("Error fetching question:", error);
-      }
-    }
-
-    fetchQuestion();
-  }, []);
-
-  return question ? (
-    <FillInTheBlanksContent
-      question={question}
-      correctAnswer={correctAnswer}
-      onNext={() => console.log("Next question")}
-    />
-  ) : (
-    <p>Loading question...</p>
   );
 }

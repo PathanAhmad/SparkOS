@@ -1,32 +1,13 @@
-// courseController.js
-
 const Course = require('../models/Course');
 const CourseProgress = require('../models/CourseProgress');
 const User = require('../models/User');
+const mongoose = require("mongoose");
 
 /**
  * Utility function: Only 'admin', 'schoolGroup', or 'school' can create/edit courses.
  */
 function canManageCourses(user) {
   return ['admin', 'schoolGroup', 'school'].includes(user.role);
-}
-
-/**
- * Utility function: return base XP for completing a piece of content, based on content type.
- */
-function getXPForContentType(contentType) {
-  switch (contentType) {
-    case 'video':
-      return 8;
-    case 'mcq':
-      return 12;
-    case 'fillInBlank':
-      return 15;
-    case 'text':
-      return 5;
-    default:
-      return 2; // fallback
-  }
 }
 
 /**
@@ -37,55 +18,48 @@ exports.createCourse = async (req, res) => {
   try {
     const currentUser = req.user;
     if (!canManageCourses(currentUser)) {
-      return res.status(403).json({ message: 'You do not have permission to create courses.' });
+      return res
+        .status(403)
+        .json({ message: 'You do not have permission to create courses.' });
     }
 
     const {
       name,
       description,
       imageBase64,
-
-      // Old approach
-      visibility,
-      schoolGroup,
-      school,
-      permittedSchools,
-
-      // New approach
+      // Use only new approach fields:
       isPublic,
       allowedSchoolGroups,
       allowedSchools,
-
       modules,
     } = req.body;
 
-    // Build course document
+    if (Array.isArray(modules)) {
+      for (const module of modules) {
+        for (const unit of module.units || []) {
+          for (const content of unit.contents || []) {
+            if (content.contentType === 'pdf' && !content.pdfFileId) {
+              console.warn('⚠️ PDF content is missing pdfFileId:', content);
+            }
+            if (content.contentType === 'text' && !content.textContent) {
+              console.warn('⚠️ Text content is missing textContent:', content);
+            }
+          }
+        }
+      }
+    }
+
+    // Build course document using only new approach fields.
     const newCourse = new Course({
-      // Shared
       name,
       description,
       imageBase64: imageBase64 || null,
       createdBy: currentUser.userId,
       modules: modules || [],
-
-      // Old approach (for backward compat)
-      visibility: visibility || 'public',
-      schoolGroup: null,
-      school: null,
-      permittedSchools: permittedSchools || [],
-
-      // New approach
-      isPublic: !!isPublic, // convert truthy to boolean
+      isPublic: !!isPublic,
       allowedSchoolGroups: allowedSchoolGroups || [],
       allowedSchools: allowedSchools || [],
     });
-
-    // If old visibility is 'schoolGroup', set schoolGroup
-    if (visibility === 'schoolGroup') {
-      newCourse.schoolGroup = schoolGroup || null;
-    } else if (visibility === 'school') {
-      newCourse.school = school || null;
-    }
 
     const savedCourse = await newCourse.save();
 
@@ -101,7 +75,7 @@ exports.createCourse = async (req, res) => {
 
 /**
  * GET /api/courses
- * Fetch all courses (you can add filters as needed).
+ * Fetch all courses.
  */
 exports.getAllCourses = async (req, res) => {
   try {
@@ -153,63 +127,30 @@ exports.updateCourse = async (req, res) => {
       return res.status(404).json({ message: 'Course not found.' });
     }
 
-    // Only creator or admin
+    // Only creator or admin can update
     const isOwner = course.createdBy.toString() === currentUser.userId;
     const isAdmin = currentUser.role === 'admin';
     if (!isOwner && !isAdmin) {
-      return res.status(403).json({ message: 'Not authorized to update this course.' });
+      return res
+        .status(403)
+        .json({ message: 'Not authorized to update this course.' });
     }
 
-    // Pull from request body
     const {
       name,
       description,
       imageBase64,
-
-      // Old approach
-      visibility,
-      schoolGroup,
-      school,
-      permittedSchools,
-
-      // New approach
+      // Use only new approach fields:
       isPublic,
       allowedSchoolGroups,
       allowedSchools,
-
       modules,
     } = req.body;
 
-    // Update fields if provided
     if (name !== undefined) course.name = name;
     if (description !== undefined) course.description = description;
     if (imageBase64 !== undefined) course.imageBase64 = imageBase64;
-
-    // If old approach visibility is updated
-    if (visibility !== undefined) {
-      course.visibility = visibility;
-      if (visibility === 'schoolGroup') {
-        course.schoolGroup = schoolGroup || null;
-        course.school = null;
-      } else if (visibility === 'school') {
-        course.school = school || null;
-        course.schoolGroup = null;
-      } else {
-        // 'public'
-        course.schoolGroup = null;
-        course.school = null;
-      }
-    }
-
-    if (modules !== undefined) {
-      course.modules = modules;
-    }
-
-    if (permittedSchools !== undefined) {
-      course.permittedSchools = permittedSchools;
-    }
-
-    // New approach
+    if (modules !== undefined) course.modules = modules;
     if (isPublic !== undefined) {
       course.isPublic = !!isPublic;
     }
@@ -218,6 +159,22 @@ exports.updateCourse = async (req, res) => {
     }
     if (allowedSchools !== undefined) {
       course.allowedSchools = allowedSchools;
+    }
+
+    // Optional: validate pdf/text content when updating
+    if (Array.isArray(course.modules)) {
+      for (const module of course.modules) {
+        for (const unit of module.units || []) {
+          for (const content of unit.contents || []) {
+            if (content.contentType === 'pdf' && !content.pdfFileId) {
+              console.warn('⚠️ [UPDATE] PDF content is missing pdfFileId:', content);
+            }
+            if (content.contentType === 'text' && !content.textContent) {
+              console.warn('⚠️ [UPDATE] Text content is missing textContent:', content);
+            }
+          }
+        }
+      }
     }
 
     const updatedCourse = await course.save();
@@ -246,11 +203,12 @@ exports.deleteCourse = async (req, res) => {
       return res.status(404).json({ message: 'Course not found.' });
     }
 
-    // Only owner or admin
     const isOwner = course.createdBy.toString() === currentUser.userId;
     const isAdmin = currentUser.role === 'admin';
     if (!isOwner && !isAdmin) {
-      return res.status(403).json({ message: 'Not authorized to delete this course.' });
+      return res
+        .status(403)
+        .json({ message: 'Not authorized to delete this course.' });
     }
 
     await course.deleteOne();
@@ -276,11 +234,9 @@ exports.reorderModules = async (req, res) => {
       return res.status(404).json({ message: 'Course not found.' });
     }
 
-    // Map moduleId -> module
     const modulesMap = new Map();
     course.modules.forEach((m) => modulesMap.set(m._id.toString(), m));
 
-    // Rebuild in new order
     const reordered = [];
     newModuleOrder.forEach((id) => {
       const moduleData = modulesMap.get(id);
@@ -320,7 +276,6 @@ exports.reorderUnits = async (req, res) => {
       return res.status(404).json({ message: 'Module not found.' });
     }
 
-    // Map unitId -> unit
     const unitsMap = new Map();
     targetModule.units.forEach((u) => unitsMap.set(u._id.toString(), u));
 
@@ -368,7 +323,6 @@ exports.reorderContent = async (req, res) => {
       return res.status(404).json({ message: 'Unit not found.' });
     }
 
-    // Map contentId -> content item
     const contentMap = new Map();
     targetUnit.contents.forEach((c) => contentMap.set(c._id.toString(), c));
 
@@ -392,136 +346,141 @@ exports.reorderContent = async (req, res) => {
 };
 
 /**
- * POST /api/courses/:courseId/complete-content
- * For a student to mark content as completed, awarding XP & updating streak.
- * Expects { contentId } in the body.
- */
-exports.completeContent = async (req, res) => {
-  try {
-    const currentUser = req.user;
-    const { courseId } = req.params;
-    const { contentId } = req.body;
-
-    // Only students "complete" content
-    if (currentUser.role !== 'student') {
-      return res.status(403).json({ message: 'Only students can complete content.' });
-    }
-
-    // Check if course exists
-    const course = await Course.findById(courseId);
-    if (!course) {
-      return res.status(404).json({ message: 'Course not found.' });
-    }
-
-    // Locate the content type
-    let foundContentType = null;
-    outerLoop: for (const mod of course.modules) {
-      for (const unit of mod.units) {
-        for (const c of unit.contents) {
-          if (c._id.toString() === contentId) {
-            foundContentType = c.contentType;
-            break outerLoop;
-          }
-        }
-      }
-    }
-
-    if (!foundContentType) {
-      return res.status(404).json({ message: 'Content not found in this course.' });
-    }
-
-    // Check or create progress
-    let progress = await CourseProgress.findOne({
-      user: currentUser.userId,
-      course: courseId,
-    });
-    if (!progress) {
-      progress = await CourseProgress.create({
-        user: currentUser.userId,
-        course: courseId,
-        completedContentIds: [],
-      });
-    }
-
-    // If already completed
-    if (progress.completedContentIds.includes(contentId)) {
-      return res.status(200).json({ message: 'Content already completed.' });
-    }
-
-    // Mark completed
-    progress.completedContentIds.push(contentId);
-    await progress.save();
-
-    // Award XP
-    const userDoc = await User.findById(currentUser.userId);
-    if (!userDoc) {
-      return res.status(404).json({ message: 'User not found.' });
-    }
-
-    let xpToAward = getXPForContentType(foundContentType);
-
-    // Streak logic
-    const now = new Date();
-    const lastActive = userDoc.lastActiveDate ? new Date(userDoc.lastActiveDate) : null;
-
-    if (!lastActive) {
-      userDoc.streak = 1;
-      xpToAward += 5;
-    } else {
-      const diffInMs = now.getTime() - lastActive.getTime();
-      const diffInDays = Math.floor(diffInMs / (1000 * 60 * 60 * 24));
-
-      if (diffInDays === 0) {
-        xpToAward += 2;
-      } else if (diffInDays === 1) {
-        userDoc.streak += 1;
-        xpToAward += 5;
-      } else {
-        userDoc.streak = 1;
-        xpToAward += 2;
-      }
-    }
-
-    userDoc.lastActiveDate = now;
-    userDoc.xp += xpToAward;
-
-    await userDoc.save();
-
-    return res.status(200).json({
-      message: 'Content completed and XP/streak updated.',
-      xpAwarded: xpToAward,
-      totalXP: userDoc.xp,
-      streak: userDoc.streak,
-    });
-  } catch (err) {
-    console.error('Complete Content Error:', err);
-    return res.status(500).json({ message: 'Internal server error' });
-  }
-};
-
-/**
  * GET /api/courses/:courseId/progress
  * Fetch course progress for the current user.
  */
 exports.getCourseProgress = async (req, res) => {
   try {
     const { courseId } = req.params;
-    const currentUser = req.user; // Ensure `protect` middleware is used
+    const currentUser = req.user;
 
-    // Find progress for this user & course
+    console.log(`🔎 Fetching progress for user: ${currentUser._id} | course: ${courseId}`);
+
+    // ✅ Ensure query uses **correct ObjectId** formatting
     const progress = await CourseProgress.findOne({
-      user: currentUser._id,
-      course: courseId,
+      user: currentUser._id.toString(),  // ✅ Ensure it's a string for direct matching
+      course: courseId.toString(),  // ✅ Ensure it's a string for direct matching
     });
 
     if (!progress) {
-      return res.status(404).json({ message: 'No progress found for this course.' });
+      console.log("⚠️ No progress found. Returning empty.");
+      return res.status(200).json({ completedContentIds: [] });
     }
 
+    console.log("✅ Progress Found:", progress);
     return res.status(200).json(progress);
   } catch (err) {
-    console.error('Get Course Progress Error:', err);
-    return res.status(500).json({ message: 'Internal server error' });
+    console.error("❌ Get Course Progress Error:", err);
+    return res.status(500).json({ message: "Internal server error" });
   }
 };
+
+/**
+ * POST /api/courses/:courseId/complete-unit
+ * Marks an entire unit as completed, awarding XP based on total mistakes.
+ * Expects { unitId, mistakes } in the body.
+ */
+exports.completeUnit = async (req, res) => {
+  try {
+    const currentUser = req.user;
+    const { courseId } = req.params;
+    const { unitId, mistakes } = req.body;
+
+    if (currentUser.role !== "student") {
+      return res.status(403).json({ message: "Only students can complete units." });
+    }
+
+    // ✅ Use `unitId.toString()` to prevent ObjectId mismatch
+    const unitIdStr = unitId.toString();
+
+    // ✅ Get existing progress
+    let progress = await CourseProgress.findOne({ user: currentUser._id, course: courseId });
+
+    if (progress && progress.completedContentIds.includes(unitIdStr)) {
+      console.log(`🟡 User ${currentUser._id} already completed unit ${unitIdStr}. Granting 5 XP.`);
+      const userDoc = await User.findById(currentUser._id);
+      userDoc.xp += 5; 
+      userDoc.lastActiveDate = new Date();
+      await userDoc.save();
+
+      return res.status(200).json({
+        message: "Unit already completed. Bonus XP granted.",
+        xpAwarded: 5,
+        totalXP: userDoc.xp,
+        streak: userDoc.streak,
+        alreadyCompleted: true,
+      });
+    }
+
+    // ✅ Store unitId as **string** in `completedContentIds`
+    progress = await CourseProgress.findOneAndUpdate(
+      { user: currentUser._id, course: courseId },
+      { $addToSet: { completedContentIds: unitIdStr } }, // ✅ Store as string
+      { upsert: true, new: true }
+    );
+
+    // ✅ Award XP
+    const xpToAward = mistakes === 0 ? 10 : 7;
+    const userDoc = await User.findById(currentUser._id);
+    userDoc.xp += xpToAward;
+    userDoc.lastActiveDate = new Date();
+    await userDoc.save();
+
+    return res.status(200).json({
+      message: "Unit completed and XP updated.",
+      xpAwarded: xpToAward,
+      totalXP: userDoc.xp,
+      streak: userDoc.streak,
+      alreadyCompleted: false,
+    });
+  } catch (err) {
+    console.error("Complete Unit Error:", err);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+// function getModulesWithUnitStatus(modules = [], progress) {
+//   const completedUnits = new Set(progress?.completedContentIds || []); // ✅ Store completed unit IDs
+
+//   let lastCompletedUnit = null; // ✅ Track the last completed unit globally
+
+//   return modules.map((module, moduleIndex) => {
+//     let previousUnitCompleted = false;
+
+//     const unitsWithStatus = module.units.map((unit, unitIndex) => {
+//       const unitId = unit._id.toString();
+//       const isUnitCompleted = completedUnits.has(unitId); // ✅ Only check unit-level completion
+
+//       // ✅ Always unlock the first unit of the course
+//       let unitStatus = "locked";
+//       if (moduleIndex === 0 && unitIndex === 0) {
+//         unitStatus = "unlocked";
+//       } 
+//       // ✅ If the previous unit is completed, unlock the next one
+//       else if (previousUnitCompleted) {
+//         unitStatus = "unlocked";
+//       }
+
+//       // ✅ If this unit is completed, store it as the last completed unit
+//       if (isUnitCompleted) {
+//         lastCompletedUnit = { moduleIndex, unitIndex };
+//         unitStatus = "completed";
+//       }
+
+//       previousUnitCompleted = isUnitCompleted; // ✅ Track last completed unit in this module
+//       return { ...unit, unitStatus };
+//     });
+
+//     // ✅ If this module contains the last completed unit, unlock the next unit
+//     if (lastCompletedUnit && lastCompletedUnit.moduleIndex === moduleIndex) {
+//       const nextUnit = unitsWithStatus[lastCompletedUnit.unitIndex + 1];
+//       if (nextUnit && nextUnit.unitStatus === "locked") {
+//         nextUnit.unitStatus = "unlocked";
+//       }
+//     }
+
+//     return { ...module, unitsWithStatus };
+//   });
+// }
+
 

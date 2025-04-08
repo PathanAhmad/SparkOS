@@ -22,7 +22,7 @@ export default function AdminCourses() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [editCourseData, setEditCourseData] = useState(null);
 
-  const API_BASE_URL = import.meta.env.VITE_API_URL;
+  const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5100";
 
   useEffect(() => {
     fetchCourses();

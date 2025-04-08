@@ -3,7 +3,7 @@ import React from "react";
 export default function VideoContent({ videoUrl, onNext }) {
   return (
     <div className="flex flex-col items-center w-full">
-      <div className="w-full h-full max-h-[80vh] md:w-3/4 aspect-video flex items-center justify-center">
+      <div className="w-full h-full max-h-[80vh] md:w-1/2 aspect-video flex items-center justify-center">
         <iframe
           title="YouTube Video"
           src={`https://www.youtube.com/embed/${videoUrl.split("v=")[1].split("&")[0]}`}

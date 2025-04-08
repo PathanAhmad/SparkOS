@@ -9,7 +9,7 @@ import MCQContent from "./MCQContent";
 import FillInTheBlanksContent from "./FillInTheBlanksContent";
 import CourseCompletionSummary from "./CourseCompletionSummary";
 import PDFContent from "./PDFContent";
-import TextContent from "./TextContent"; // ✅ Import TextContent
+import TextContent from "./TextContent";
 
 export default function UnitContent() {
   const { courseId, moduleIndex, unitIndex } = useParams();
@@ -19,157 +19,102 @@ export default function UnitContent() {
   const [course, setCourse] = useState(null);
   const [unit, setUnit] = useState(null);
   const [currentContentIndex, setCurrentContentIndex] = useState(0);
+  const [mistakesTracker, setMistakesTracker] = useState(0); // ✅ Track cumulative mistakes
   const [completionData, setCompletionData] = useState(null);
   const [error, setError] = useState("");
-  const [initialXP, setInitialXP] = useState(null); // ✅ Initial XP storage
 
-  const API_BASE_URL = import.meta.env.VITE_API_URL;
+  const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5100";
 
   useEffect(() => {
-    if (!token) return;
+    if (!token || unit) return;
     fetchCourse();
   }, [courseId, moduleIndex, unitIndex, token]);
 
   const fetchCourse = async () => {
     try {
-      console.log("🔄 Fetching course data...");
       const headers = { Authorization: `Bearer ${token}` };
       const res = await axios.get(`${API_BASE_URL}/api/courses/${courseId}`, { headers });
 
-      console.log("✅ API Response:", res.data);
       setCourse(res.data);
 
       const mIndex = parseInt(moduleIndex, 10);
       const uIndex = parseInt(unitIndex, 10);
 
-      if (
-        res.data.modules &&
-        res.data.modules[mIndex] &&
-        res.data.modules[mIndex].units &&
-        res.data.modules[mIndex].units[uIndex]
-      ) {
-        console.log("📌 Setting unit:", res.data.modules[mIndex].units[uIndex]);
+      if (res.data.modules?.[mIndex]?.units?.[uIndex]) {
         setUnit(res.data.modules[mIndex].units[uIndex]);
       } else {
-        console.error("❌ Error: Unit not found.");
-        setError("Unit not found.");
-      }
-
-      // ✅ Set initial XP when the course is first fetched
-      if (initialXP === null) {
-        setInitialXP(res.data.userXP || 0);
-        console.log("📌 Initial XP stored:", res.data.userXP);
+        throw new Error("Unit not found.");
       }
     } catch (err) {
-      console.error("❌ Error fetching course data:", err);
+      console.error("Error fetching course data:", err);
       setError("Failed to load course data.");
     }
   };
 
-  const currentContent = unit && unit.contents && unit.contents[currentContentIndex];
+  // ✅ Ensure mistakes accumulate across all questions & log them
+  const handleNext = (mistakes = 0) => {
+    const updatedMistakes = mistakesTracker + mistakes;
+    setMistakesTracker(updatedMistakes); // ✅ Accumulate mistakes
 
-  const markContentCompleted = async (contentId) => {
-    try {
-      console.log(`🔄 Marking content completed: ${contentId}`);
-      const headers = { Authorization: `Bearer ${token}` };
-      const res = await axios.post(
-        `${API_BASE_URL}/api/courses/${courseId}/complete-content`,
-        { contentId },
-        { headers }
-      );
-      console.log("✅ Content marked as completed:", res.data);
-      return res.data;
-    } catch (err) {
-      console.error("❌ Error marking content as completed:", err);
-      setError("Error marking content as completed.");
-      return null;
+    console.log(`📌 Mistakes so far: ${updatedMistakes}`);
+
+    if (currentContentIndex < unit.contents.length - 1) {
+      setCurrentContentIndex((prev) => prev + 1);
+    } else {
+      console.log(`✅ Final content reached, submitting ${updatedMistakes} mistakes.`);
+      setCompletionData({ 
+        mistakes: updatedMistakes, 
+        courseId, 
+        unitId: unit._id 
+      });
     }
   };
 
-  const handleNext = async () => {
-        if (!currentContent) return;
-        const result = await markContentCompleted(currentContent._id);
-
-        if (currentContentIndex < unit.contents.length - 1) {
-            console.log("➡️ Moving to next content...");
-            setCurrentContentIndex(currentContentIndex + 1);
-        } else {
-            console.log("🎉 Unit completed. Storing completion data.");
-
-            setCompletionData({
-                totalXP: result.totalXP,
-                earnedXP: result.xpAwarded ?? 0,  // ✅ Shows XP earned in the course (not subtracted from initial XP)
-                streak: result.streak,
-            });
-        }
-    };
-
-
   const renderContent = () => {
-    if (!currentContent) {
-      console.log("⏳ Waiting for content to load...");
-      return <p>Loading content...</p>;
-    }
-
-    console.log("📌 Rendering Content:", currentContent);
+    const currentContent = unit?.contents?.[currentContentIndex];
+    if (!currentContent) return <p className="text-gray-600">Loading content...</p>;
 
     switch (currentContent.contentType) {
       case "video":
-        console.log("🎬 Rendering VideoContent");
-        return <VideoContent videoUrl={currentContent.videoUrl} onNext={handleNext} />;
+        return <VideoContent videoUrl={currentContent.videoUrl} onNext={() => handleNext(0)} />;
+      case "pdf":
+        return <PDFContent pdfFileId={currentContent.pdfFileId} onNext={() => handleNext(0)} />;
+      case "text":
+        return <TextContent textContent={currentContent.textContent} onNext={() => handleNext(0)} />;
       case "mcq":
-        console.log("✅ Rendering MCQContent");
         return (
           <MCQContent
             question={currentContent.question}
             options={currentContent.options}
             correctAnswer={currentContent.correctAnswer}
-            onNext={handleNext}
+            onNext={handleNext} // ✅ Properly passing mistakes
           />
         );
       case "fillInBlank":
-        console.log("✍️ Rendering FillInTheBlanksContent", currentContent);
         return (
           <FillInTheBlanksContent
             question={currentContent.question}
             correctAnswer={currentContent.correctAnswer || "UNKNOWN"}
-            onNext={handleNext}
+            onNext={handleNext} // ✅ Properly passing mistakes
           />
         );
-      case "pdf":
-        console.log("📄 Rendering PDFContent");
-        return <PDFContent pdfFileId={currentContent.pdfFileId} onNext={handleNext} />;
-      case "text":
-        console.log("📜 Rendering TextContent");
-        return <TextContent textContent={currentContent.textContent} onNext={handleNext} />;
       default:
-        console.error("❌ Unknown content type:", currentContent.contentType);
         return <p className="text-xl text-center text-red-600">⚠️ Unknown content type: {currentContent.contentType}</p>;
     }
   };
 
   if (completionData) {
-    console.log("🎓 Rendering CourseCompletionSummary", completionData);
-    return (
-      <CourseCompletionSummary
-        totalXP={completionData.totalXP}
-        earnedXP={completionData.earnedXP ?? 0}
-        streak={completionData.streak}
-        courseName={course?.name || "this course"}
-      />
-    );
+    return <CourseCompletionSummary completionData={completionData} />;
   }
 
   return (
     <div className="h-screen w-screen bg-gray-100 flex flex-col overflow-hidden">
-      {/* Top Bar with Quit Button */}
       <header className="bg-gray p-4 flex justify-end">
         <button onClick={() => navigate(-1)} className="text-white hover:text-gray-800 text-4xl">
           &times;
         </button>
       </header>
 
-      {/* Main Content Area */}
       <main className="flex-1 flex items-center justify-center p-4 w-full h-full overflow-hidden">
         {error ? <div className="text-red-600 text-2xl">{error}</div> : renderContent()}
       </main>

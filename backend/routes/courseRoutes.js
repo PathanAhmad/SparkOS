@@ -27,10 +27,10 @@ router.put('/:courseId/:moduleId/reorder-units', protect, courseController.reord
 // Reorder contents
 router.put('/:courseId/:moduleId/:unitId/reorder-content', protect, courseController.reorderContent);
 
-// Complete content (for students)
-router.post('/:courseId/complete-content', protect, courseController.completeContent);
-
 // Fetch course progress for a user
 router.get('/:courseId/progress', protect, courseController.getCourseProgress);
+
+// Complete a unit (award XP at the end of a unit)
+router.post('/:courseId/complete-unit', protect, courseController.completeUnit);
 
 module.exports = router;

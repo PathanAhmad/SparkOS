@@ -339,3 +339,28 @@ exports.getUserById = async (req, res) => {
     res.status(500).json({ message: 'Internal server error' });
   }
 };
+
+/**
+ * GET /api/user/profile
+ * Fetch the current logged-in user's profile, including XP and streak.
+ */
+exports.getUserProfile = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.userId).lean();
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    return res.status(200).json({
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      xp: user.xp,         
+      streak: user.streak, 
+    });
+  } catch (error) {
+    console.error('Get User Profile Error:', error);
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+};

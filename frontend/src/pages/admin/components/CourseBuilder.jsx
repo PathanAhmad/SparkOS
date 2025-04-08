@@ -22,7 +22,7 @@ export default function CourseBuilder({ onSuccess, onClose }) {
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
 
-  const API_BASE_URL = import.meta.env.VITE_API_URL;
+  const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5100";
 
   // ------------------------------------------------------------------
   // 1) Fetch data on mount
@@ -141,15 +141,30 @@ export default function CourseBuilder({ onSuccess, onClose }) {
   // ------------------------------------------------------------------
   // 4) PDF & Image Upload
   // ------------------------------------------------------------------
-  const handlePdfUpload = (file, moduleIndex, unitIndex, contentIndex) => {
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      const base64String = reader.result.split(',')[1];
-      updateContentField(moduleIndex, unitIndex, contentIndex, 'pdfFileId', base64String);
-    };
-    reader.readAsDataURL(file);
+  const handlePdfUpload = async (file, moduleIndex, unitIndex, contentIndex) => {
+    if (!file) {
+      console.warn("No file selected.");
+      return;
+    }
+  
+    const formData = new FormData();
+    formData.append("pdf", file);
+  
+    try {
+      const headers = { Authorization: `Bearer ${token}` };
+      const res = await axios.post(`${API_BASE_URL}/api/files/upload-pdf`, formData, { headers });
+  
+      if (res.data.fileId) {
+        console.log(`Uploaded PDF. GridFS ID: ${res.data.fileId}`);
+        updateContentField(moduleIndex, unitIndex, contentIndex, "pdfFileId", res.data.fileId);
+      } else {
+        console.error("PDF uploaded but no fileId returned.");
+      }
+    } catch (err) {
+      console.error("PDF Upload Error:", err.response?.data || err.message);
+    }
   };
+  
 
   const handleImageUpload = (file) => {
     if (!file) return;
@@ -548,9 +563,14 @@ export default function CourseBuilder({ onSuccess, onClose }) {
                                 className="mb-2"
                               />
                               {content.pdfFileId && (
-                                <p className="text-sm text-green-600">
-                                  PDF attached (Base64 length {content.pdfFileId.length})
-                                </p>
+                                <a
+                                  href={`${API_BASE_URL}/api/files/pdf/${content.pdfFileId}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-blue-600 underline text-sm"
+                                >
+                                  📄 Preview PDF
+                                </a>
                               )}
                             </div>
                           </>

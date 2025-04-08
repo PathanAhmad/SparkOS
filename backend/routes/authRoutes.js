@@ -4,11 +4,11 @@ const router = express.Router();
 
 const authController = require('../controllers/authController');
 const { protect } = require('../middleware/authMiddleware');
-const upload = require('../middleware/uploadMiddleware');  // Import the multer middleware
+
 
 // Public endpoints
 // Use upload.single('profileImage') to handle a single file upload from the field 'profileImage'
-router.post('/register', upload.single('profileImage'), authController.registerUser);
+router.post('/register', authController.registerUser);
 router.post('/login', authController.loginUser);
 
 // Public GET routes to fetch approved schools / groups
